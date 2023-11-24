@@ -61,7 +61,7 @@ class TemplateManager
             $render = $this->customResolvers[$name]($this->app);
         } else {
             $config = $this->getConfig($name);
-            if (!isset($config)) {
+            if (! isset($config)) {
                 throw new \Exception("template renderer name '$name' is not defined");
             }
             $driver = $config['driver'] ?? null;
@@ -73,7 +73,7 @@ class TemplateManager
                     throw new \Exception("template renderer driver '$driver' is not defined");
             }
         }
-        if (!($render instanceof RendererInterface)) {
+        if (! ($render instanceof RendererInterface)) {
             throw new \Exception(
                 "Renderer resolver '$name' should return instance of "
                 .RendererInterface::class

@@ -70,7 +70,7 @@ class TwigRenderer implements RendererInterface
         string $preferredTimezone = null
     ): string {
         $name = hash(\PHP_VERSION_ID < 80100 ? 'sha256' : 'xxh128', $template, false);
-        if (!$this->loader->exists($name)) {
+        if (! $this->loader->exists($name)) {
             $this->loader->setTemplate($name, $template);
         }
         $defaultTimezone ??= $this->timezone ?? date_default_timezone_get();
