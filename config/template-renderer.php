@@ -17,7 +17,12 @@ return [
     'renderers' => [
         'twig' => [
             'driver' => 'twig',
-            'cache' => env('TEMPLATE_RENDERER_CACHE_PATH', storage_path('template-renderer')),
+
+            /*
+            | Uncomment following config if you want to use cache to speed up template loading.
+            | Note: you will have to take care of clearing cache files by yourself when needed.
+            */
+            // 'cache' => env('TEMPLATE_RENDERER_CACHE_PATH', storage_path('template-renderer')),
         ],
     ],
 
