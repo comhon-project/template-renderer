@@ -5,9 +5,12 @@ namespace Tests\Feature;
 use Carbon\Carbon;
 use Comhon\TemplateRenderer\Facades\Template;
 use Comhon\TemplateRenderer\Renderers\RendererInterface;
+use Comhon\TemplateRenderer\Rules\Template as RulesTemplate;
 use Comhon\TemplateRenderer\Tests\Support\TestTemplaterRender;
 use Comhon\TemplateRenderer\Tests\TestCase;
 use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class TemplateManagerTest extends TestCase
 {
@@ -80,5 +83,23 @@ class TemplateManagerTest extends TestCase
 
         $this->expectExceptionMessage("Renderer resolver 'test' should return instance of ".RendererInterface::class);
         Template::render('test {{ to_replace }} test', []);
+    }
+
+    public function testValidationRuleValidated()
+    {
+        $validated = Validator::validate(
+            ['my_template' => 'test {{ user.name }} test'], 
+            ['my_template' => new RulesTemplate()]
+        );
+        $this->assertEquals('test {{ user.name }} test', $validated['my_template']);
+    }
+
+    public function testValidationRuleNotValidated()
+    {
+        $this->expectException(ValidationException::class);
+        Validator::validate(
+            ['my_template' => 'test {{ "true }} test'], 
+            ['my_template' => new RulesTemplate()]
+        );
     }
 }
