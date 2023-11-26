@@ -13,7 +13,6 @@ class Template implements ValidationRule
      * @param  string  $attribute
      * @param  mixed  $value
      * @param  \Closure(string): \Illuminate\Translation\PotentiallyTranslatedString  $fail
-     * @return void
      */
     public function validate($attribute, $value, $fail): void
     {

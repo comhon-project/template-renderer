@@ -88,7 +88,7 @@ class TemplateManagerTest extends TestCase
     public function testValidationRuleValidated()
     {
         $validated = Validator::validate(
-            ['my_template' => 'test {{ user.name }} test'], 
+            ['my_template' => 'test {{ user.name }} test'],
             ['my_template' => new RulesTemplate()]
         );
         $this->assertEquals('test {{ user.name }} test', $validated['my_template']);
@@ -98,7 +98,7 @@ class TemplateManagerTest extends TestCase
     {
         $this->expectException(ValidationException::class);
         Validator::validate(
-            ['my_template' => 'test {{ "true }} test'], 
+            ['my_template' => 'test {{ "true }} test'],
             ['my_template' => new RulesTemplate()]
         );
     }
