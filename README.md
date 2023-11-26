@@ -1,6 +1,11 @@
 # PHP Template Renderer
 
-PHP library that permit to render templates and permit to define which renderer to use.
+-   Your library needs to render templates (example: email template) but you don't want to implement it ?
+-   You want your template renderer to be customizable by developers that use your library ?
+
+This library is made for that! it permit to render templates and permit to define which renderer to use. This library is generally intended for Laravel projects but you can use it even if you are not implementing a Laravel project.
+
+There is only one renderer available by default ([twig](https://twig.symfony.com)), but you can add your own by defining your own driver.
 
 ## Installation
 
@@ -10,7 +15,7 @@ You can install the package via composer:
 composer require comhon-project/template-renderer
 ```
 
-You can publish the config file with:
+For laravel project, you can publish the config file with:
 
 ```bash
 php artisan vendor:publish --tag="template-renderer-config"
@@ -18,12 +23,68 @@ php artisan vendor:publish --tag="template-renderer-config"
 
 ## Usage
 
+### Laravel project
+
 ```php
 $rendered = Template::render(
     'Hello {{ user.name }} !!!',
-    ['user' => ['name' => 'doe']]
+    ['user' => ['name' => 'john doe']]
 );
+
+echo $rendered;
+// output: Hello john doe !!!
 ```
+
+### Non Laravel project
+
+```php
+use Comhon\TemplateRenderer\TemplateManager;
+
+// the instantiation mechanism should be implemented in a specific place
+// and called only one time (TemplateManager should be used as singleton)
+$templateManager = new TemplateManager($app);
+
+$rendered = $templateManager->render(
+    'Hello {{ user.name }} !!!',
+    ['user' => ['name' => 'john doe']]
+);
+
+echo $rendered;
+// output: Hello john doe !!!
+```
+
+## Adding custom renderer driver
+
+First, you will have to define a class that implements `Comhon\TemplateRenderer\Renderers\RendererInterface`
+
+```php
+<?php
+use Comhon\TemplateRenderer\Renderers\RendererInterface;
+
+class MyTemplateRenderer implements RendererInterface
+{
+    public function setDefaultLocale(string $locale) {}
+    public function setDefaultTimezone(string $timezone) {}
+    public function validate(string $template) {}
+    public function render(
+        string $template,
+        array $replacements,
+        string $defaultLocale = null,
+        string $defaultTimezone = null,
+        string $preferredTimezone = null
+    ): string {}
+}
+```
+
+Then, you will have to register your driver by calling the `Template` facade's `extend` method:
+
+```php
+    Template::extend('my-renderer', function ($app) {
+        return new MyTemplateRenderer($app);
+    });
+```
+
+In laravel project, you may call this function in the `boot` method of your `AppServiceProvider`
 
 ## Testing
 

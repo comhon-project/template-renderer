@@ -6,13 +6,13 @@ return [
     /*
      | Here you may specify which of the template renderers below you wish
      | to use as your default renderer for all template rendering.
+     | for more information on twig renderer, take a look at https://twig.symfony.com/
      */
     'default_renderer' => env('TEMPLATE_RENDERER', 'twig'),
 
     /*
-     | Here you may define all of the cache template engines for your application as
-     | well as their drivers. Template engines are used to render templates.
-     | In this library they will be used typically for notifications (email templates).
+     | Here you may define all of the template renderers for your application as
+     | well as their drivers.
      */
     'renderers' => [
         'twig' => [
