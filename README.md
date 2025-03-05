@@ -69,22 +69,23 @@ class MyTemplateRenderer implements RendererInterface
     public function render(
         string $template,
         array $replacements,
-        string $defaultLocale = null,
-        string $defaultTimezone = null,
-        string $preferredTimezone = null
+        ?string $defaultLocale = null,
+        ?string $defaultTimezone = null,
+        ?string $preferredTimezone = null
     ): string {}
 }
 ```
 
-Then, you will have to register your driver by calling the `Template` facade's `extend` method:
-
+Then, you will have to register your driver by calling the `Template` facade's `extend` method:  
+(In laravel project, you may call this function in the `boot` method of your `AppServiceProvider`)
 ```php
     Template::extend('my-renderer', function ($app) {
         return new MyTemplateRenderer($app);
     });
 ```
 
-In laravel project, you may call this function in the `boot` method of your `AppServiceProvider`
+In laravel project, you can set your renderer as the default one. To do so, modify the `default_renderer` value in the config file.
+
 
 ## Testing
 

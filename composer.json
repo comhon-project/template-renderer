@@ -17,6 +17,7 @@
     ],
     "require": {
         "php": "^8.1",
+        "ext-intl": "*",
         "spatie/laravel-package-tools": "^1.14.0",
         "illuminate/contracts": "^10.0|^11.0",
         "twig/intl-extra": "^3.7",

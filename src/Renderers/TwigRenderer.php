@@ -34,7 +34,7 @@ class TwigRenderer implements RendererInterface
     {
         $this->loader = new ArrayLoader([]);
         $this->twig = new Environment($this->loader, $config);
-        $this->twig->addExtension(new IntlExtension());
+        $this->twig->addExtension(new IntlExtension);
     }
 
     /**
@@ -56,18 +56,18 @@ class TwigRenderer implements RendererInterface
     /**
      * render template
      *
-     * @param  string  $template the template to render
-     * @param  array  $replacements values used for replacements
-     * @param  string  $defaultLocale the default locale that should be used
-     * @param  string  $defaultTimezone the default timezone that should be used
-     * @param  string  $preferredTimezone the timezone to use when needed based on reader preferences.
+     * @param  string  $template  the template to render
+     * @param  array  $replacements  values used for replacements
+     * @param  string  $defaultLocale  the default locale that should be used
+     * @param  string  $defaultTimezone  the default timezone that should be used
+     * @param  string  $preferredTimezone  the timezone to use when needed based on reader preferences.
      */
     public function render(
         string $template,
         array $replacements,
-        string $defaultLocale = null,
-        string $defaultTimezone = null,
-        string $preferredTimezone = null
+        ?string $defaultLocale = null,
+        ?string $defaultTimezone = null,
+        ?string $preferredTimezone = null
     ): string {
         $name = hash(\PHP_VERSION_ID < 80100 ? 'sha256' : 'xxh128', $template, false);
         if (! $this->loader->exists($name)) {

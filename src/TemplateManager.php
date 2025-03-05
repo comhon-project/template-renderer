@@ -41,10 +41,8 @@ class TemplateManager
 
     /**
      * Get a render instance by name.
-     *
-     * @param  string|null  $name
      */
-    public function getRenderer($name = null): RendererInterface
+    public function getRenderer(?string $name = null): RendererInterface
     {
         $name = $name ?: $this->getDefaultRendererName();
 
