@@ -9,6 +9,7 @@ use Comhon\TemplateRenderer\Rules\Template as RulesTemplate;
 use Comhon\TemplateRenderer\Tests\Support\TestTemplaterRender;
 use Comhon\TemplateRenderer\Tests\TestCase;
 use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Lang;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -37,6 +38,28 @@ class TemplateManagerTest extends TestCase
             'test lundi 12 décembre 2022 à 13:12:12 heure normale d’Europe centrale test',
             str_replace(' ', ' ', $rendered)
         );
+    }
+
+    public function test_twig_renderer_dynamic_translation_app_locale()
+    {
+        Lang::addLines(['messages.hello' => 'Hello!'], 'en');
+        Lang::addLines(['messages.hello' => 'Salut!'], 'fr');
+
+        $template = 'test {{ hello.translate() }} test';
+        $replacements = ['hello' => new class
+        {
+            public function translate()
+            {
+                return __('messages.hello');
+            }
+        }];
+        $rendered = Template::render($template, $replacements);
+        $this->assertEquals('test Hello! test', $rendered);
+
+        Template::setDefaultLocale('fr');
+        Template::setDefaultTimezone('Europe/Paris');
+        $rendered = Template::render($template, $replacements);
+        $this->assertEquals('test Salut! test', $rendered);
     }
 
     public function test_twig_validate()

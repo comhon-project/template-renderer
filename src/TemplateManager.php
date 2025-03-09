@@ -7,11 +7,6 @@ use Comhon\TemplateRenderer\Renderers\TwigRenderer;
 
 class TemplateManager
 {
-    /**
-     * The application instance.
-     *
-     * @var \Illuminate\Contracts\Foundation\Application
-     */
     protected $app;
 
     /**
@@ -28,12 +23,6 @@ class TemplateManager
      */
     protected $customResolvers = [];
 
-    /**
-     * Create a new instance.
-     *
-     * @param  \Illuminate\Contracts\Foundation\Application  $app
-     * @return void
-     */
     public function __construct($app)
     {
         $this->app = $app;
@@ -58,14 +47,14 @@ class TemplateManager
         if (isset($this->customResolvers[$name])) {
             $render = $this->customResolvers[$name]($this->app);
         } else {
-            $config = $this->getConfig($name);
+            $config = $this->getRendererConfig($name);
             if (! isset($config)) {
                 throw new \Exception("template renderer name '$name' is not defined");
             }
             $driver = $config['driver'] ?? null;
             switch ($driver) {
                 case 'twig':
-                    $render = new TwigRenderer($config);
+                    $render = new TwigRenderer($config, $this->app);
                     break;
                 default:
                     throw new \Exception("template renderer driver '$driver' is not defined");
@@ -90,21 +79,17 @@ class TemplateManager
     }
 
     /**
-     * Get the cache connection configuration.
-     *
-     * @return array|null
+     * Get the renderer configuration.
      */
-    protected function getConfig(string $name)
+    protected function getRendererConfig(string $name): ?array
     {
         return $this->app['config']["template-renderer.renderers.{$name}"];
     }
 
     /**
      * Get the default renderer name.
-     *
-     * @return string
      */
-    public function getDefaultRendererName()
+    public function getDefaultRendererName(): string
     {
         return $this->app['config']['template-renderer.default_renderer'];
     }
