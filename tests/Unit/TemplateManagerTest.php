@@ -62,6 +62,23 @@ class TemplateManagerTest extends TestCase
         $this->assertEquals('test Salut! test', $rendered);
     }
 
+    public function test_twig_renderer_laravel_translation_functions()
+    {
+        Lang::addLines(['messages.hello' => 'Hello!'], 'en');
+        Lang::addLines(['messages.hello' => 'Salut!'], 'fr');
+        Lang::addLines(['messages.number' => '{1} one|{2} two'], 'en');
+        Lang::addLines(['messages.number' => '{1} un|{2} deux'], 'fr');
+
+        $template = "test {{ __('messages.hello') }} {{ trans('messages.hello') }} {{ trans_choice('messages.number', 1) }} {{ trans_choice('messages.number', 2) }} test";
+        $rendered = Template::render($template, []);
+        $this->assertEquals('test Hello! Hello! one two test', $rendered);
+
+        Template::setDefaultLocale('fr');
+        Template::setDefaultTimezone('Europe/Paris');
+        $rendered = Template::render($template, []);
+        $this->assertEquals('test Salut! Salut! un deux test', $rendered);
+    }
+
     public function test_twig_validate()
     {
         // valid

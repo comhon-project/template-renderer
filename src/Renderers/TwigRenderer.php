@@ -39,6 +39,15 @@ class TwigRenderer implements RendererInterface
         $this->loader = new ArrayLoader([]);
         $this->twig = new Environment($this->loader, $config);
         $this->twig->addExtension(new IntlExtension);
+        $this->twig->addFunction(new \Twig\TwigFunction('__', function ($key = null, $replace = [], $locale = null) {
+            return __($key, $replace, $locale);
+        }));
+        $this->twig->addFunction(new \Twig\TwigFunction('trans', function ($key = null, $replace = [], $locale = null) {
+            return trans($key, $replace, $locale);
+        }));
+        $this->twig->addFunction(new \Twig\TwigFunction('trans_choice', function ($key, $number, array $replace = [], $locale = null) {
+            return trans_choice($key, $number, $replace, $locale);
+        }));
     }
 
     /**
