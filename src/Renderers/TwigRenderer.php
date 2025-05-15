@@ -48,6 +48,9 @@ class TwigRenderer implements RendererInterface
         $this->twig->addFunction(new \Twig\TwigFunction('trans_choice', function ($key, $number, array $replace = [], $locale = null) {
             return trans_choice($key, $number, $replace, $locale);
         }));
+        $this->twig->addGlobal('default_timezone', null);
+        $this->twig->addGlobal('preferred_timezone', null);
+        $this->twig->addGlobal('default_locale', null);
     }
 
     /**
