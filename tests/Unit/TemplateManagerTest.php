@@ -131,7 +131,7 @@ class TemplateManagerTest extends TestCase
         Template::render('test {{ to_replace }} test', []);
     }
 
-    public function test_validation_rule_validated()
+    public function test_validation_rule_valid()
     {
         $validated = Validator::validate(
             ['my_template' => 'test {{ user.name }} test'],
@@ -140,11 +140,20 @@ class TemplateManagerTest extends TestCase
         $this->assertEquals('test {{ user.name }} test', $validated['my_template']);
     }
 
-    public function test_validation_rule_not_validated()
+    public function test_validation_rule_invalid_string()
     {
         $this->expectException(ValidationException::class);
         Validator::validate(
             ['my_template' => 'test {{ "true }} test'],
+            ['my_template' => new RulesTemplate]
+        );
+    }
+
+    public function test_validation_rule_invalid_not_string()
+    {
+        $this->expectException(ValidationException::class);
+        Validator::validate(
+            ['my_template' => ['array']],
             ['my_template' => new RulesTemplate]
         );
     }

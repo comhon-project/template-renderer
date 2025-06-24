@@ -17,7 +17,11 @@ class Template implements ValidationRule
     public function validate($attribute, $value, $fail): void
     {
         try {
-            FacadesTemplate::validate($value);
+            if (is_string($value)) {
+                FacadesTemplate::validate($value);
+            } else {
+                $fail("The value $attribute must be a string");
+            }
         } catch (\Exception $e) {
             $fail($e->getMessage());
         }
