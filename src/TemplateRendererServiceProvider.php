@@ -2,6 +2,8 @@
 
 namespace Comhon\TemplateRenderer;
 
+use Comhon\TemplateRenderer\Locale\LaravelLocaleHandler;
+use Comhon\TemplateRenderer\Locale\LocaleHandler;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
 
@@ -21,8 +23,10 @@ class TemplateRendererServiceProvider extends PackageServiceProvider
 
     public function packageRegistered()
     {
-        $this->app->singleton(TemplateManager::class, function ($app) {
-            return new TemplateManager($app);
-        });
+        $this->app->bindIf(LocaleHandler::class, LaravelLocaleHandler::class);
+        $this->app->singleton(TemplateManager::class, fn ($app) => new TemplateManager(
+            $app['config']['template-renderer'],
+            $app->make(LocaleHandler::class),
+        ));
     }
 }

@@ -1,21 +1,18 @@
 # PHP Template Renderer
 
--   Your library needs to render templates (example: email template) but you don't want to implement it ?
--   You want your template renderer to be customizable by developers that use your library ?
+Render templates (emails, documents, notifications…) without tying your code to a template engine.
 
-This library is made for that! it permit to render templates and permit to define which renderer to use. This library is generally intended for Laravel projects but you can use it even if you are not implementing a Laravel project.
-
-There is only one renderer available by default ([twig](https://twig.symfony.com)), but you can add your own by defining your own driver.
+- Templates are rendered by a **driver**. [Twig](https://twig.symfony.com) is provided, and you can add your own.
+- Locale and timezone are handled per render, including dates without timezone (e.g. a meeting at 14:00).
+- Designed for Laravel, but usable in any PHP project.
 
 ## Installation
-
-You can install the package via composer:
 
 ```bash
 composer require comhon-project/template-renderer
 ```
 
-For laravel project, you can publish the config file with:
+In a Laravel project, you can publish the config file:
 
 ```bash
 php artisan vendor:publish --tag="template-renderer-config"
@@ -23,69 +20,278 @@ php artisan vendor:publish --tag="template-renderer-config"
 
 ## Usage
 
-### Laravel project
+### Laravel
 
 ```php
-$rendered = Template::render(
-    'Hello {{ user.name }} !!!',
-    ['user' => ['name' => 'john doe']]
-);
+use Comhon\TemplateRenderer\Facades\Template;
 
-echo $rendered;
-// output: Hello john doe !!!
+echo Template::render('Hello {{ user.name }}!', ['user' => ['name' => 'John']]);
+// Hello John!
 ```
 
-### Non Laravel project
+### Without Laravel
+
+Create the template manager once (e.g. as a singleton) with its configuration:
 
 ```php
 use Comhon\TemplateRenderer\TemplateManager;
 
-// the instantiation mechanism should be implemented in a specific place
-// and called only one time (TemplateManager should be used as singleton)
-$templateManager = new TemplateManager($app);
+$config = [
+    'default_renderer' => 'twig',
+    'renderers' => [
+        'twig' => ['driver' => 'twig'],
+    ],
+];
 
-$rendered = $templateManager->render(
-    'Hello {{ user.name }} !!!',
-    ['user' => ['name' => 'john doe']]
-);
+$templateManager = new TemplateManager($config);
 
-echo $rendered;
-// output: Hello john doe !!!
+echo $templateManager->render('Hello {{ user.name }}!', ['user' => ['name' => 'John']]);
+// Hello John!
 ```
 
-## Adding custom renderer driver
-
-First, you will have to define a class that implements `Comhon\TemplateRenderer\Renderers\RendererInterface`
+To use the locale of your application, give a locale handler as second argument.
+It tells the library how to read and change your application locale:
 
 ```php
-<?php
-use Comhon\TemplateRenderer\Renderers\RendererInterface;
+use Comhon\TemplateRenderer\Locale\LocaleHandler;
 
-class MyTemplateRenderer implements RendererInterface
+class MyLocaleHandler implements LocaleHandler
 {
-    public function setDefaultLocale(string $locale) {}
-    public function setDefaultTimezone(string $timezone) {}
+    public function getLocale(): ?string { /* return your application locale */ }
+    public function setLocale(?string $locale): void { /* change your application locale */ }
+}
+
+$templateManager = new TemplateManager($config, new MyLocaleHandler);
+```
+
+### Locale and timezone
+
+A render can be given a locale, a timezone and a preferred timezone (the reader's timezone):
+
+```php
+use Comhon\TemplateRenderer\RenderOptions;
+
+Template::render($template, $replacements, new RenderOptions(locale: 'fr', timezone: 'Europe/Paris', preferredTimezone: 'Asia/Tokyo'));
+```
+
+To render for a recipient, a method of your own can build the options:
+
+```php
+class User
+{
+    public function toRenderOptions(): RenderOptions
+    {
+        return new RenderOptions(locale: $this->locale, preferredTimezone: $this->timezone);
+    }
+}
+
+Template::render($template, $replacements, $user->toRenderOptions());
+```
+
+When a value is missing, the default one is used:
+
+- locale: the renderer default locale, otherwise the application locale;
+- timezone: the renderer default timezone, otherwise the PHP default timezone;
+- preferred timezone: same as the timezone above.
+
+Defaults are defined per renderer: `Template::setDefaultLocale()` and `Template::setDefaultTimezone()` set those of the default renderer,
+`Template::using('my-renderer')->setDefaultLocale()` those of another one.
+Setting them creates the renderer, so a custom driver must be registered (see `extend()` below) beforehand.
+
+During the render, the locale is applied to the application, so translations (e.g. `__()`) use it.
+In Twig templates, these values are available as `default_locale`, `default_timezone` and `preferred_timezone`.
+
+### Building replacements from the render context
+
+An array of replacements is built before the render, without knowing its final locale and timezone.
+Replacements can also be given as a closure, which is only called at render time.
+It receives the render context (`Comhon\TemplateRenderer\RenderContext`), which gives the resolved `locale()`, `timezone()` and `preferredTimezone()`,
+so replacements can depend on them:
+
+```php
+use Comhon\TemplateRenderer\RenderContext;
+
+$templateManager->render($template, fn (RenderContext $context) => [
+    // full date in the render timezone and locale (e.g. "samedi 12 décembre 2026 à 15:00")
+    'ordered_at' => IntlDateFormatter::formatObject(
+        $order->created_at->setTimezone(new DateTimeZone($context->timezone())),
+        [IntlDateFormatter::FULL, IntlDateFormatter::SHORT],
+        $context->locale(),
+    ),
+]);
+```
+
+With Laravel, the app locale is set to the render locale while the closure is called,
+so Laravel translations and Carbon formatting use it:
+
+```php
+Template::render($template, fn (RenderContext $context) => [
+    'ordered_at' => $order->created_at->tz($context->timezone())->isoFormat('LLLL'),
+    'title' => __('emails.title'),
+]);
+```
+
+### Dates without timezone
+
+Some dates have no timezone: a meeting at 14:00, a birthday. Build them from the render context:
+
+- `$context->dateTime($value)` returns a `PlainDateTime`: the date and time placed in the render timezone.
+  It behaves like any date: displayed as is, converted when another timezone is requested, comparable.
+- `$context->date($value)` returns a `PlainDate`: a day that never shifts, even when another timezone is requested.
+
+Both return `null` for a `null` value (handy for nullable columns).
+
+```php
+Template::render(
+    "{{ meeting|date('H:i') }} / {{ meeting|date('H:i', 'Asia/Shanghai') }} / {{ birthday|date('d/m', 'America/New_York') }}",
+    fn (RenderContext $context) => [
+        'meeting' => $context->dateTime('2026-12-12 14:00'),
+        'birthday' => $context->date('2026-12-12'),
+    ],
+    new RenderOptions(timezone: 'Europe/Paris'),
+);
+// 14:00 / 21:00 / 12/12 (a regular date at midnight in Paris would give 11/12 in New York)
+```
+
+The ideal value is a string without timezone (`Y-m-d H:i:s` or `Y-m-d`).
+As renders often run asynchronously (e.g. in queued jobs), where a failure is costly, other values are tolerated:
+
+- **The timezone of the value is ignored**: the date is taken as written (`2026-12-12 14:00 UTC` gives 14:00 in the render timezone).
+  If the timezone of your value matters, don't use these classes: pass the date as is.
+- Any `DateTimeInterface` or date string readable by PHP is accepted.
+  Only a date or time that doesn't exist (e.g. `2026-02-30`, `24:00`), or a year outside 1 to 9999, throws an exception.
+- Relative strings (e.g. `today`) are interpreted in the render timezone.
+  Strings are read by PHP: a year alone (e.g. `2026`) is read as a time (20:26 today).
+
+Limits to be aware of:
+
+- A time that doesn't exist in the render timezone (daylight saving time change) is shifted by PHP (02:30 becomes 03:30).
+- A `PlainDate` keeps its day only through template filters and its own `setTimezone()`.
+  Other conversions (e.g. `Carbon::instance()`, `IntlDateFormatter`) see it as midnight in the render timezone and may change the day.
+
+### Using another renderer
+
+`render()` uses the default renderer (`default_renderer` in the config). To use another one:
+
+```php
+Template::using('my-renderer')->render($template, $replacements);
+```
+
+## Custom drivers
+
+### 1. Implement the driver
+
+Implement `Comhon\TemplateRenderer\Drivers\DriverInterface`:
+
+```php
+use Comhon\TemplateRenderer\Drivers\DriverInterface;
+use Comhon\TemplateRenderer\RenderContext;
+
+class MyDriver implements DriverInterface
+{
+    public function __construct(private array $config) {}
+
+    public function render(string $template, array $replacements, RenderContext $context): string
+    {
+        // render with $context->locale(), $context->timezone() and $context->preferredTimezone()
+    }
+
     public function validate(string $template) {}
-    public function render(
-        string $template,
-        array $replacements,
-        ?string $defaultLocale = null,
-        ?string $defaultTimezone = null,
-        ?string $preferredTimezone = null
-    ): string {}
 }
 ```
 
-Then, you will have to register your driver by calling the `Template` facade's `extend` method:  
-(In laravel project, you may call this function in the `boot` method of your `AppServiceProvider`)
+The render context is resolved before `render()` is called, and its locale is already applied to the application.
+A driver can ignore the values it doesn't handle (e.g. the timezones for an engine without date formatting).
+
+#### Custom options
+
+`RenderOptions` can be extended with your own options:
+
 ```php
-    Template::extend('my-renderer', function ($app) {
-        return new MyTemplateRenderer($app);
-    });
+use Comhon\TemplateRenderer\RenderOptions;
+
+class MyRenderOptions extends RenderOptions
+{
+    public function __construct(
+        ?string $locale = null,
+        ?string $timezone = null,
+        ?string $preferredTimezone = null,
+        public readonly ?string $currency = null,
+    ) {
+        parent::__construct($locale, $timezone, $preferredTimezone);
+    }
+}
 ```
 
-In laravel project, you can set your renderer as the default one. To do so, modify the `default_renderer` value in the config file.
+The given options are available as is through `$context->options()`, in the replacements closure:
 
+```php
+Template::render(
+    'Total: {{ total }}',
+    fn (RenderContext $context) => [
+        'total' => (new NumberFormatter($context->locale(), NumberFormatter::CURRENCY))
+            ->formatCurrency($order->total, $context->options()->currency),
+    ],
+    new MyRenderOptions(locale: 'fr', currency: 'EUR'),
+);
+// Total: 12,50 €
+```
+
+and in drivers:
+
+```php
+// in MyDriver::render()
+$options = $context->options();
+if ($options instanceof MyRenderOptions) {
+    // use $options->currency
+}
+```
+
+Drivers that don't know these options simply ignore them.
+
+### 2. Register the driver
+
+The closure receives the configuration of the renderer using the driver.
+In a Laravel project, call it in the `boot` method of a service provider.
+
+```php
+Template::extend('my-driver', fn (array $config) => new MyDriver($config));
+```
+
+### 3. Declare a renderer using the driver
+
+In the configuration (the array given to `TemplateManager`, or `config/template-renderer.php` with Laravel):
+
+```php
+'renderers' => [
+    'my-renderer' => [
+        'driver' => 'my-driver',
+        // options given to your driver
+    ],
+],
+```
+
+Several renderers can use the same driver with different options.
+Set `default_renderer` to use your renderer by default.
+
+### Using a renderer without the template manager
+
+A `Comhon\TemplateRenderer\Renderer` can be created directly with its driver.
+It resolves the context, applies the locale and calls the replacements closure (`Template::render()` uses it under the hood).
+
+```php
+use Comhon\TemplateRenderer\Renderer;
+
+$renderer = new Renderer(new MyDriver($config), new MyLocaleHandler); // the locale handler is optional
+
+$renderer->render($template, fn (RenderContext $context) => [
+    'meeting' => $context->dateTime('2026-12-12 14:00'),
+], new RenderOptions(locale: 'fr', timezone: 'Europe/Paris'));
+```
+
+## Upgrading
+
+See [UPGRADING](UPGRADING.md) for upgrade instructions between major versions.
 
 ## Testing
 
@@ -95,7 +301,7 @@ composer test
 
 ## Changelog
 
-Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
+See [CHANGELOG](CHANGELOG.md) for recent changes.
 
 ## Credits
 
@@ -103,4 +309,4 @@ Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed re
 
 ## License
 
-The MIT License (MIT). Please see [License File](LICENSE.md) for more information.
+The MIT License (MIT). See [License File](LICENSE.md) for more information.

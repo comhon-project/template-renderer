@@ -4,6 +4,7 @@ namespace Comhon\TemplateRenderer\Rules;
 
 use Comhon\TemplateRenderer\Facades\Template as FacadesTemplate;
 use Illuminate\Contracts\Validation\ValidationRule;
+use Illuminate\Translation\PotentiallyTranslatedString;
 
 class Template implements ValidationRule
 {
@@ -12,7 +13,7 @@ class Template implements ValidationRule
      *
      * @param  string  $attribute
      * @param  mixed  $value
-     * @param  \Closure(string): \Illuminate\Translation\PotentiallyTranslatedString  $fail
+     * @param  \Closure(string): PotentiallyTranslatedString  $fail
      */
     public function validate($attribute, $value, $fail): void
     {

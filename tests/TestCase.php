@@ -27,5 +27,6 @@ class TestCase extends Orchestra
     public function getEnvironmentSetUp($app)
     {
         config()->set('database.default', 'testing');
+        config()->set('template-renderer.renderers.test', ['driver' => 'test']);
     }
 }

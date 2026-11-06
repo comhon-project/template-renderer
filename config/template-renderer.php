@@ -12,7 +12,8 @@ return [
 
     /*
      | Here you may define all of the template renderers for your application as
-     | well as their drivers.
+     | well as their drivers. Several renderers may use the same driver with
+     | different options. Custom drivers are registered with Template::extend().
      */
     'renderers' => [
         'twig' => [
