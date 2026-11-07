@@ -5,6 +5,7 @@ Render templates (emails, documents, notifications…) without tying your code t
 - Templates are rendered by a **driver**. [Twig](https://twig.symfony.com) is provided, and you can add your own.
 - Locale and timezone are handled per render, including dates without timezone (e.g. a meeting at 14:00).
 - Designed for Laravel, but usable in any PHP project.
+- Templates written by your users can be rendered in the Twig sandbox (see [Security](#security)).
 
 ## Installation
 
@@ -176,6 +177,45 @@ Limits to be aware of:
 ```php
 Template::using('my-renderer')->render($template, $replacements);
 ```
+
+## Security
+
+Twig treats templates as trusted code. When templates are written by untrusted authors (e.g. your users),
+render them in the [Twig sandbox](https://twig.symfony.com/doc/3.x/sandbox.html): the `sandbox` block of a Twig renderer
+lists what templates may use, everything else is rejected with a `Twig\Sandbox\SecurityError`.
+
+```php
+'renderers' => [
+    'twig' => [
+        'driver' => 'twig',
+        'sandbox' => [
+            'enabled' => true,
+            'allowed_tags' => ['if', 'for', 'set', /* ... */],
+            'allowed_filters' => ['escape', 'e', 'upper', 'date', /* ... */],
+            'allowed_functions' => ['__', 'trans', 'trans_choice', 'date', /* ... */],
+            'allowed_tests' => [],
+            'allowed_methods' => [\DateTimeInterface::class => ['__toString', 'format']],
+            'allowed_properties' => [App\Models\User::class => ['name']],
+            // 'policy' => App\Templates\TemplateSecurityPolicy::class,
+        ],
+    ],
+],
+```
+
+The lists are those of the Twig [security policy](https://twig.symfony.com/doc/3.x/sandbox.html#configuring-the-security-policy), in strict mode,
+and `policy` replaces them with your own class implementing `Twig\Sandbox\SecurityPolicyInterface` (instantiated without arguments).
+The sandbox is disabled by default, and the configuration file ships with lists holding everything that cannot run code nor reach anything outside the template.
+
+- `Template::validate()` and the validation rule report the tags, filters, functions and tests that are not allowed,
+  in the template itself: templates it includes, extends or embeds (the body of an `embed` included) are checked when rendered.
+  Methods and properties depend on the objects given at render time: they are only checked when rendering
+  (see [Objects](https://twig.symfony.com/doc/3.x/sandbox.html#objects)). Arrays and scalars are not checked:
+  the simplest option is to pass arrays and computed values in the replacements closure.
+  Like a rendered template, a validated one is compiled and kept in memory for the life of the process.
+- A `Stringable` object given to a filter, e.g. a Carbon date to `date`, needs its `__toString` allowed.
+- The sandbox is configured per renderer: an entry of `renderers` has one or not.
+- Read [what the sandbox does not protect against](https://twig.symfony.com/doc/3.x/sandbox.html#what-the-sandbox-does-not-protect-against),
+  and keep Twig up to date.
 
 ## Custom drivers
 
