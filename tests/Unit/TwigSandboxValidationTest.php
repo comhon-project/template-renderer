@@ -3,9 +3,11 @@
 namespace Comhon\TemplateRenderer\Tests\Unit;
 
 use Comhon\TemplateRenderer\Drivers\TwigDriver;
+use Comhon\TemplateRenderer\Exceptions\InvalidTemplateException;
 use Comhon\TemplateRenderer\RenderContext;
+use Comhon\TemplateRenderer\Tests\Support\FailingPolicy;
 use Comhon\TemplateRenderer\Tests\TestCase;
-use Twig\Error\SyntaxError;
+use Twig\Error\RuntimeError;
 use Twig\Loader\ArrayLoader;
 use Twig\Sandbox\SecurityError;
 use Twig\Sandbox\SecurityNotAllowedFilterError;
@@ -55,7 +57,8 @@ class TwigSandboxValidationTest extends TestCase
             try {
                 $driver->validate("{% deprecated 'probe' %}{{ x|lower }}");
                 $this->fail('filter should be rejected');
-            } catch (SecurityNotAllowedFilterError $e) {
+            } catch (InvalidTemplateException $e) {
+                $this->assertInstanceOf(SecurityNotAllowedFilterError::class, $e->getPrevious());
             }
             $this->assertEquals('A', $driver->render($template, ['x' => 'a'], new RenderContext));
             $this->assertEquals(2, $probes);
@@ -88,19 +91,22 @@ class TwigSandboxValidationTest extends TestCase
             ["text\n{{ 8 is constant('PHP_INT_SIZE') }}", SecurityNotAllowedTestError::class, 'Test "constant" is not allowed', $driver],
         ];
         foreach ($cases as [$template, $class, $message, $driver]) {
-            $errors = [];
-            foreach (['validate' => fn () => $driver->validate($template), 'render' => fn () => $driver->render($template, ['x' => 'a'], new RenderContext)] as $action => $run) {
-                try {
-                    $run();
-                    $this->fail("$action should reject: $template");
-                } catch (SecurityError $e) {
-                    $this->assertInstanceOf($class, $e, $template);
-                    $this->assertStringContainsString($message, $e->getMessage(), $template);
-                    $this->assertEquals(2, $e->getTemplateLine(), $template);
-                    $errors[$action] = $e->getMessage();
-                }
+            try {
+                $driver->validate($template);
+                $this->fail("validate should reject: $template");
+            } catch (InvalidTemplateException $e) {
+                $this->assertInstanceOf($class, $e->getPrevious(), $template);
+                $this->assertStringContainsString($message, $e->getMessage(), $template);
+                $this->assertEquals(2, $e->getTemplateLine(), $template);
+                $validated = $e->getPrevious()->getMessage();
             }
-            $this->assertEquals($errors['render'], $errors['validate'], $template);
+            try {
+                $driver->render($template, ['x' => 'a'], new RenderContext);
+                $this->fail("render should reject: $template");
+            } catch (SecurityError $e) {
+                $this->assertInstanceOf($class, $e, $template);
+                $this->assertEquals($validated, $e->getMessage(), $template);
+            }
         }
 
         // allowed, valid
@@ -108,6 +114,21 @@ class TwigSandboxValidationTest extends TestCase
         $extending->validate("{% extends 'other' %}{% block b %}{{ x|upper }}{% endblock %}");
         $extending->validate("{% use 'other' %}{{ x|upper }}");
         $extending->validate("{% use 'other' %}text only");
+    }
+
+    public function test_validation_reports_only_errors_about_the_template()
+    {
+        // a failure unrelated to the template is not an invalid template
+        $driver = new TwigDriver(['sandbox' => ['enabled' => true, 'policy' => FailingPolicy::class]]);
+
+        try {
+            $driver->validate('text');
+            $this->fail('the failure should be thrown');
+        } catch (RuntimeError $e) {
+            // Twig wraps the failure, it is not an invalid template
+            $this->assertInstanceOf(\RuntimeException::class, $e->getPrevious());
+            $this->assertEquals('policy failure', $e->getPrevious()->getMessage());
+        }
     }
 
     public function test_validation_covers_the_template_itself_only()
@@ -129,7 +150,7 @@ class TwigSandboxValidationTest extends TestCase
         // which the syntactic validation of a renderer without sandbox doesn't reach
         (new TwigDriver([]))->validate('{{ x|batch }}');
 
-        $this->expectException(SyntaxError::class);
+        $this->expectException(InvalidTemplateException::class);
         $this->expectExceptionMessage('Value for argument "size" is required for filter "batch"');
         $this->driver(['allowed_filters' => ['escape', 'batch']])->validate('{{ x|batch }}');
     }

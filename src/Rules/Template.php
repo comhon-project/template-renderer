@@ -2,6 +2,7 @@
 
 namespace Comhon\TemplateRenderer\Rules;
 
+use Comhon\TemplateRenderer\Exceptions\InvalidTemplateException;
 use Comhon\TemplateRenderer\Facades\Template as FacadesTemplate;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Translation\PotentiallyTranslatedString;
@@ -23,7 +24,7 @@ class Template implements ValidationRule
             } else {
                 $fail("The value $attribute must be a string");
             }
-        } catch (\Exception $e) {
+        } catch (InvalidTemplateException $e) {
             $fail($e->getMessage());
         }
     }

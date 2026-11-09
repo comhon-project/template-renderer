@@ -2,6 +2,7 @@
 
 namespace Comhon\TemplateRenderer\Drivers;
 
+use Comhon\TemplateRenderer\Exceptions\InvalidTemplateException;
 use Comhon\TemplateRenderer\RenderContext;
 
 interface DriverInterface
@@ -12,7 +13,9 @@ interface DriverInterface
     public function render(string $template, array $replacements, RenderContext $context): string;
 
     /**
-     * verify if template is valid
+     * Verify if the template is valid.
+     *
+     * @throws InvalidTemplateException with a message meant for the author of the template
      */
     public function validate(string $template);
 }

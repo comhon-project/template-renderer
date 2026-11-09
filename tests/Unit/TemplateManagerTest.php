@@ -1,12 +1,13 @@
 <?php
 
-namespace Tests\Feature;
+namespace Comhon\TemplateRenderer\Tests\Unit;
 
 use Carbon\Carbon;
 use Comhon\TemplateRenderer\Dates\PlainDate;
 use Comhon\TemplateRenderer\Dates\PlainDateTime;
 use Comhon\TemplateRenderer\Drivers\DriverInterface;
 use Comhon\TemplateRenderer\Drivers\TwigDriver;
+use Comhon\TemplateRenderer\Exceptions\InvalidTemplateException;
 use Comhon\TemplateRenderer\Facades\Template;
 use Comhon\TemplateRenderer\Locale\LaravelLocaleHandler;
 use Comhon\TemplateRenderer\Locale\LocaleHandler;
@@ -464,7 +465,7 @@ class TemplateManagerTest extends TestCase
         Template::validate('test {{ user.name }} test');
 
         // invalid should throw exception
-        $this->expectException(\Exception::class);
+        $this->expectException(InvalidTemplateException::class);
         Template::validate('test {{ "true }} test');
     }
 
@@ -624,11 +625,36 @@ class TemplateManagerTest extends TestCase
 
     public function test_validation_rule_invalid_string()
     {
-        $this->expectException(ValidationException::class);
-        Validator::validate(
-            ['my_template' => 'test {{ "true }} test'],
-            ['my_template' => new RulesTemplate]
-        );
+        try {
+            Validator::validate(
+                ['my_template' => "test\ntest {{ \"true }} test"],
+                ['my_template' => new RulesTemplate]
+            );
+            $this->fail('validation should fail');
+        } catch (ValidationException $e) {
+            // the message of Twig without the internal name of the template nor the line
+            $message = $e->errors()['my_template'][0];
+            $this->assertStringContainsString('Unclosed', $message);
+            $this->assertStringNotContainsString(' in "', $message);
+            $this->assertStringNotContainsString('line', $message);
+        }
+    }
+
+    public function test_validation_rule_lets_other_exceptions_through()
+    {
+        // only an invalid template is a validation error, anything else is a failure
+        config(['template-renderer.default_renderer' => 'test']);
+        Template::extend('test', fn () => new class extends TestDriver
+        {
+            public function validate(string $template)
+            {
+                throw new \RuntimeException('driver failure');
+            }
+        });
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('driver failure');
+        Validator::validate(['my_template' => 'test'], ['my_template' => new RulesTemplate]);
     }
 
     public function test_validation_rule_invalid_not_string()

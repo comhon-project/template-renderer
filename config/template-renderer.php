@@ -26,6 +26,11 @@ return [
             // 'cache' => env('TEMPLATE_RENDERER_CACHE_PATH', storage_path('template-renderer')),
 
             /*
+            | Any other Twig option is passed as is, e.g. 'autoescape' => false for a renderer
+            | dedicated to plain text (mail subjects, text mails).
+            */
+
+            /*
             | Twig sandbox, for templates written by untrusted authors (e.g. your users). A sandboxed template
             | can only use what is listed below, see https://twig.symfony.com/doc/3.x/sandbox.html
             | and the "Security" section of the README. A missing list is empty.

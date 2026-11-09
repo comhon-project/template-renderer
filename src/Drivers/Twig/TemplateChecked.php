@@ -2,17 +2,18 @@
 
 namespace Comhon\TemplateRenderer\Drivers\Twig;
 
-use Twig\Sandbox\SecurityError;
+use Twig\Error\Error;
 
 /**
- * Thrown by the validating policy to interrupt the render of a template once Twig checked its security.
+ * Interrupts the render of a template once Twig checked its security (a Twig error is not wrapped by Twig).
  *
  * @internal
  */
-final class TemplateChecked extends SecurityError
+final class TemplateChecked extends Error
 {
     public function __construct()
     {
-        parent::__construct('The template passed the sandbox security check');
+        // line 0, otherwise Twig guesses one from the backtrace
+        parent::__construct('The template passed the sandbox security check', 0);
     }
 }

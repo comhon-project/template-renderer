@@ -4,12 +4,16 @@ namespace Comhon\TemplateRenderer\Drivers;
 
 use Comhon\TemplateRenderer\Drivers\Twig\TemplateChecked;
 use Comhon\TemplateRenderer\Drivers\Twig\ValidationPolicy;
+use Comhon\TemplateRenderer\Exceptions\InvalidTemplateException;
 use Comhon\TemplateRenderer\RenderContext;
 use Twig\Environment;
+use Twig\Error\LoaderError;
+use Twig\Error\SyntaxError;
 use Twig\Extension\CoreExtension;
 use Twig\Extra\Intl\IntlExtension;
 use Twig\Loader\ArrayLoader;
 use Twig\Sandbox\Sandbox;
+use Twig\Sandbox\SecurityError;
 use Twig\Sandbox\SecurityPolicy;
 use Twig\Sandbox\SecurityPolicyInterface;
 use Twig\Source;
@@ -93,20 +97,34 @@ class TwigDriver implements DriverInterface
     }
 
     /**
-     * verify if template is valid
+     * @see DriverInterface::validate()
      *
      * @param  string  $template
      */
     public function validate($template)
     {
         $name = $this->templateName($template);
-        $this->twig->parse($this->twig->tokenize(new Source($template, $name)));
-        if ($this->sandbox === null) {
-            return;
+        try {
+            $this->twig->parse($this->twig->tokenize(new Source($template, $name)));
+            if ($this->sandbox !== null) {
+                $this->validateInSandbox($template, $name);
+            }
+        } catch (SyntaxError|SecurityError|LoaderError $e) {
+            // only the errors about the template itself: Twig wraps any other failure in one of them, with a previous
+            if ($e->getPrevious() !== null) {
+                throw $e;
+            }
+            // the message of Twig, without the internal name of the template (a hash)
+            throw new InvalidTemplateException(rtrim($e->getRawMessage(), '.'), $e->getTemplateLine() > 0 ? $e->getTemplateLine() : null, $e);
         }
+    }
 
-        // the sandbox checks the tags, filters, functions and tests of a template when it starts
-        // rendering, before evaluating anything: the validation sandbox interrupts the render right after
+    /**
+     * The sandbox checks the tags, filters, functions and tests of a template when it starts rendering,
+     * before evaluating anything: the validation sandbox interrupts the render right after.
+     */
+    private function validateInSandbox(string $template, string $name): void
+    {
         $this->registerTemplate($template);
         $this->validationSandbox ??= new Sandbox($this->createEnvironment(), new ValidationPolicy($this->policy));
         try {

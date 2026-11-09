@@ -5,6 +5,7 @@ namespace Comhon\TemplateRenderer\Tests\Unit;
 use Carbon\Carbon;
 use Comhon\TemplateRenderer\Dates\PlainDateTime;
 use Comhon\TemplateRenderer\Drivers\TwigDriver;
+use Comhon\TemplateRenderer\Exceptions\InvalidTemplateException;
 use Comhon\TemplateRenderer\Facades\Template;
 use Comhon\TemplateRenderer\RenderContext;
 use Comhon\TemplateRenderer\Renderer;
@@ -248,9 +249,10 @@ class TwigSandboxTest extends TestCase
             try {
                 $driver->validate($template);
                 $this->fail("$class expected for: $template");
-            } catch (SecurityError $e) {
-                $this->assertInstanceOf($class, $e);
+            } catch (InvalidTemplateException $e) {
+                $this->assertInstanceOf($class, $e->getPrevious());
                 $this->assertStringContainsString($message, $e->getMessage());
+                $this->assertStringNotContainsString(' in "', $e->getMessage());
                 $this->assertEquals(2, $e->getTemplateLine());
             }
         }
@@ -275,10 +277,10 @@ class TwigSandboxTest extends TestCase
         $this->assertEquals('{{ name|upper }}', $validated['my_template']);
 
         try {
-            Validator::validate(['my_template' => '{{ name|lower }}'], ['my_template' => new RulesTemplate]);
+            Validator::validate(['my_template' => "text\n{{ name|lower }}"], ['my_template' => new RulesTemplate]);
             $this->fail('validation should fail');
         } catch (ValidationException $e) {
-            $this->assertStringContainsString('Filter "lower" is not allowed', $e->errors()['my_template'][0]);
+            $this->assertEquals('Filter "lower" is not allowed', $e->errors()['my_template'][0]);
         }
     }
 

@@ -3,6 +3,7 @@
 namespace Comhon\TemplateRenderer;
 
 use Comhon\TemplateRenderer\Drivers\DriverInterface;
+use Comhon\TemplateRenderer\Exceptions\InvalidTemplateException;
 use Comhon\TemplateRenderer\Locale\LocaleHandler;
 
 /**
@@ -76,6 +77,9 @@ class Renderer
         ));
     }
 
+    /**
+     * @throws InvalidTemplateException when the template is invalid
+     */
     public function validate(string $template)
     {
         return $this->driver->validate($template);

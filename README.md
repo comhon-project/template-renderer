@@ -178,11 +178,15 @@ Limits to be aware of:
 Template::using('my-renderer')->render($template, $replacements);
 ```
 
+Any option of a Twig renderer is given to Twig as is: a renderer with `'autoescape' => false` renders plain text
+(mail subjects, text mails) without HTML escaping.
+
 ## Security
 
 Twig treats templates as trusted code. When templates are written by untrusted authors (e.g. your users),
 render them in the [Twig sandbox](https://twig.symfony.com/doc/3.x/sandbox.html): the `sandbox` block of a Twig renderer
-lists what templates may use, everything else is rejected with a `Twig\Sandbox\SecurityError`.
+lists what templates may use. Everything else is rejected: `render()` throws a `Twig\Sandbox\SecurityError`,
+`validate()` an `InvalidTemplateException`.
 
 ```php
 'renderers' => [
@@ -242,6 +246,8 @@ class MyDriver implements DriverInterface
 
 The render context is resolved before `render()` is called, and its locale is already applied to the application.
 A driver can ignore the values it doesn't handle (e.g. the timezones for an engine without date formatting).
+In `validate()`, throw a `Comhon\TemplateRenderer\Exceptions\InvalidTemplateException` when the template is invalid: the validation rule reports its message to the author of the template,
+and lets any other exception through.
 
 #### Custom options
 
